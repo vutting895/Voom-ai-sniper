@@ -35,4 +35,7 @@
       "hono": "4.12.25"
     }
   }
+  "scripts": {
+    "build": "[my-framework] build --output public"
+  }
 }
