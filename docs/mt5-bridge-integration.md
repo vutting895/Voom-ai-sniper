@@ -27,6 +27,13 @@ Treat this as a deployment-specific contract, not a public API. Never expose por
 4. A daily-loss guard that blocks new entries does not protect existing positions. Position-level SL/TP and emergency handling need separate verification.
 5. Never treat a model score, backtest or paper-trading result as a guarantee of future performance.
 
+## Current web API safety status
+
+- `/api/broker/auth` is deliberately disabled and returns HTTP 503. The UI credential inputs and lock controls are disabled. Do not enter broker API keys until per-user authentication, authorization, encrypted secret storage, and secret rotation are implemented and reviewed.
+- `/api/trade` and `/api/trade/execute` fail closed with HTTP 503. They do not submit orders. The web app must not be treated as an MT5 execution client.
+- The orphan root `route.ts` was removed because it was not a routable Next.js API route and contained a hard-coded default user ID and fallback encryption key.
+- Build/typecheck and dependency audit were run on the PR branch: Next.js production build and TypeScript passed; pnpm audit reported zero known advisories for the current lockfile. This is not a substitute for a full application security review.
+
 ## Research workflow
 
 1. Use the isolated `research_backtesting` workspace on the Windows host for offline experiments.
@@ -35,9 +42,10 @@ Treat this as a deployment-specific contract, not a public API. Never expose por
 4. Compare with MT5 Strategy Tester and the Bridge's own backtest. The standalone `backtesting.py` package is AGPL-3.0; review license obligations before embedding or distributing it in a proprietary or network service.
 5. Only promote a strategy after reproducible tests and demo forward testing. No research code should import the live Bridge or call order APIs.
 
-## Known issues to resolve before production integration
+## Remaining issues before production integration
 
-- The default branch's root `package.json` was invalid JSON due to a duplicated trailing `scripts` object. This branch should keep one valid scripts block; verify the branch file and dependency lockfile together before merge.
+- The default branch still needs the malformed root `package.json` repair from this PR. Do not merge until the PR is reviewed and the branch is confirmed.
 - Audit the AI signal pipeline before connecting it to execution: the current helper returns only `BUY` or `WAIT` (no `SELL`) and should not be used as a complete trading decision.
-- Verify the actual Next.js production build and all API routes in CI. A syntactically valid `package.json` alone does not prove the app builds or that broker endpoints are secure.
-- Keep all changes in this PR isolated; it does not change the live MT5 EA or Python Bridge.
+- Broker auth and web-based trade execution are intentionally disabled; they are not complete product features. Implement and security-review authentication, per-user authorization, encrypted secret storage, audit logging, rate limits, and server-side risk checks before enabling them.
+- The Vercel preview has passed build/typecheck and the current lockfile audit is clean. Production deployment and live trading integration have not been performed.
+- This PR does not change the live MT5 EA or Python Bridge.
