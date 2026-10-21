@@ -27,6 +27,12 @@ Treat this as a deployment-specific contract, not a public API. Never expose por
 4. A daily-loss guard that blocks new entries does not protect existing positions. Position-level SL/TP and emergency handling need separate verification.
 5. Never treat a model score, backtest or paper-trading result as a guarantee of future performance.
 
+## Live read-only Bridge integration (Preview only)
+
+The current Preview can reach the Windows-host Bridge through a Cloudflare Quick Tunnel to a separate HTTP adapter bound to `127.0.0.1:8082`. The adapter itself only sends the allowlisted TCP commands `PING`, `GET_PARAMS`, and `ANALYZE` to the existing Bridge on `127.0.0.1:8081`; it exposes no order command. Every adapter request requires a high-entropy bearer token stored in a protected local file and as a sensitive Vercel Preview-only environment variable. The Vercel proxy requires same-origin POST requests and uses no-store responses.
+
+Quick Tunnels are temporary and have no uptime guarantee. This connection is for Preview validation only; use a named Cloudflare Tunnel with managed access controls before any production use. Keep the token private and rotate it if it is exposed.
+
 ## Current web API safety status
 
 - `/api/broker/auth` is deliberately disabled and returns HTTP 503. The UI credential inputs and lock controls are disabled. Do not enter broker API keys until per-user authentication, authorization, encrypted secret storage, and secret rotation are implemented and reviewed.

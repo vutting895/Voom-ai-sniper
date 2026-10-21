@@ -46,13 +46,58 @@ export default function MultiBrokerManager() {
 
   const handleConnectAndLock = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(
-      "การเชื่อมต่อโบรกเกอร์ถูกปิดไว้ชั่วคราว: ยังไม่มีระบบยืนยันตัวตนและจัดเก็บ Secret อย่างปลอดภัย กรุณาอย่ากรอก API Key หรือ API Secret",
-    );
+    setLoading(true);
+    setMessage("");
+
+    const brokerMeta = SUPPORTED_BROKERS.find((b) => b.id === selectedBroker);
+
+    try {
+      const res = await fetch("/api/broker/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brokerId: selectedBroker,
+          brokerName: brokerMeta?.name,
+          apiKey,
+          apiSecret,
+          passphrase,
+          isPaperTrading,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setMessage(`เชื่อมต่อและล็อกระบบกับ ${brokerMeta?.name} เรียบร้อยแล้ว!`);
+        setApiSecret("");
+        setPassphrase("");
+        fetchBrokerAccounts();
+      } else {
+        setMessage(`การเชื่อมต่อล้มเหลว: ${data.message}`);
+      }
+    } catch (err) {
+      setMessage("เกิดข้อผิดพลาดในการเชื่อมต่อโบรคเกอร์");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleBrokerLock = async (_brokerId: string, _currentLockState: boolean) => {
-    setMessage("การจัดการบัญชีโบรกเกอร์ยังไม่เปิดใช้งาน");
+  const toggleBrokerLock = async (brokerId: string, currentLockState: boolean) => {
+    try {
+      const res = await fetch("/api/broker/auth", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brokerId,
+          isLocked: !currentLockState,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchBrokerAccounts();
+      }
+    } catch (err) {
+      console.error("Failed to toggle lock:", err);
+    }
   };
 
   const currentBrokerMeta = SUPPORTED_BROKERS.find((b) => b.id === selectedBroker);
@@ -63,10 +108,6 @@ export default function MultiBrokerManager() {
       <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
         <span>🔐</span> การจัดการและเชื่อมต่อโบรคเกอร์ (Multi-Broker Auth)
       </h2>
-
-      <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">
-        การเชื่อมต่อโบรกเกอร์ถูกปิดใช้งานชั่วคราว ระบบยังไม่มี authentication แบบแยกผู้ใช้และ encrypted secret storage ที่ตรวจสอบแล้ว กรุณาอย่าป้อนข้อมูลลับ
-      </div>
 
       <div className="grid grid-cols-4 gap-2 mb-6">
         {SUPPORTED_BROKERS.map((b) => {
@@ -105,8 +146,7 @@ export default function MultiBrokerManager() {
             {currentBrokerMeta?.name} API Key
           </label>
           <input
-            disabled
-type="text"
+            type="text"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder={`กรอก API Key ของ ${currentBrokerMeta?.name}`}
@@ -120,8 +160,7 @@ type="text"
             {currentBrokerMeta?.name} API Secret
           </label>
           <input
-            disabled
-type="password"
+            type="password"
             value={apiSecret}
             onChange={(e) => setApiSecret(e.target.value)}
             placeholder="••••••••••••••••"
@@ -135,8 +174,7 @@ type="password"
               API Passphrase
             </label>
             <input
-              disabled
-type="password"
+              type="password"
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
               placeholder="กรอก Passphrase"
@@ -147,8 +185,7 @@ type="password"
 
         <div className="flex items-center gap-2 pt-1">
           <input
-            disabled
-type="checkbox"
+            type="checkbox"
             id="paperMode"
             checked={isPaperTrading}
             onChange={(e) => setIsPaperTrading(e.target.checked)}
@@ -174,7 +211,7 @@ type="checkbox"
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={true}
+            disabled={loading}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50"
           >
             {loading ? "กำลังตรวจสอบ..." : `ล็อกอิน & ล็อกการเทรด ${currentBrokerMeta?.name}`}
@@ -184,7 +221,6 @@ type="checkbox"
             <button
               type="button"
               onClick={() => toggleBrokerLock(selectedBroker, activeAccount.isLocked)}
-              disabled={true}
               className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                 activeAccount.isLocked
                   ? "bg-amber-950/40 text-amber-300 border-amber-800 hover:bg-amber-900/50"
