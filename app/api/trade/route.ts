@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { createBitkubOrder } from "@/lib/bitkub-order";
 
-export async function POST(request: Request) {
-  const body = await request.json();
-
-  const result = await createBitkubOrder(body);
-
-  return NextResponse.json(result);
+export async function POST() {
+  return NextResponse.json(
+    {
+      accepted: false,
+      mode: "DISABLED",
+      code: "TRADE_EXECUTION_DISABLED",
+      message: "No order was sent. Trading through the web API is disabled until authenticated execution and server-side risk checks are implemented.",
+    },
+    { status: 503, headers: { "Cache-Control": "no-store" } },
+  );
 }
