@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 
+/**
+ * Trading execution is permanently outside the Sniper analysis service.
+ * Signals and strategy analysis must never submit broker orders.
+ */
 export async function POST() {
   return NextResponse.json(
     {
       accepted: false,
-      mode: "DISABLED",
-      code: "TRADE_EXECUTION_DISABLED",
-      message: "No order was sent. Trading through the web API is disabled until authenticated execution and server-side risk checks are implemented.",
+      status: "disabled",
+      code: "SNIPER_EXECUTION_DISABLED",
+      message: "This service is analysis-only. No broker order was sent.",
     },
-    { status: 503, headers: { "Cache-Control": "no-store" } },
+    { status: 410, headers: { "Cache-Control": "no-store" } },
   );
 }
