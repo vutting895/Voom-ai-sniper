@@ -12,14 +12,14 @@ test("Sniper package manifest exposes real verification commands", () => {
 });
 
 test("Next build does not suppress TypeScript errors", () => {
-  assert.doesNotMatch(read("../next.config.mjs"), /ignoreBuildErrors\\s*:\\s*true/);
+  assert.doesNotMatch(read("../next.config.mjs"), /ignoreBuildErrors\s*:\s*true/);
 });
 
 test("public trade API is permanently disabled and cannot call an order adapter", () => {
   const route = read("../app/api/trade/route.ts");
   assert.match(route, /SNIPER_EXECUTION_DISABLED/);
-  assert.match(route, /status:\\s*410/);
-  assert.doesNotMatch(route, /createBitkubOrder|order_send|fetch\\(/i);
+  assert.match(route, /status:\s*410/);
+  assert.doesNotMatch(route, /createBitkubOrder|order_send|fetch\(/i);
 });
 
 test("legacy root broker credential handler is removed, not left as a mounted endpoint", () => {
@@ -30,5 +30,5 @@ test("MT5 worker remains import-safe and refuses every order", () => {
   const worker = read("../mt5_execution_worker.py");
   assert.match(worker, /def execute_mt5_order/);
   assert.match(worker, /return False/);
-  assert.doesNotMatch(worker, /import MetaTrader5|mt5\\.initialize|mt5\\.login|mt5\\.order_send/i);
+  assert.doesNotMatch(worker, /import MetaTrader5|mt5\.initialize|mt5\.login|mt5\.order_send/i);
 });
