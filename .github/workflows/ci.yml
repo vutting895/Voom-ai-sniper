@@ -31,7 +31,10 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Test disabled MT5 execution boundary
+      - name: Install research test dependencies
+        run: python -m pip install -r research/requirements.txt
+
+      - name: Test disabled MT5 execution boundary and research logic
         run: python -m unittest discover -s tests -p "test_*.py"
 
       - name: Compile research Python sources
