@@ -34,6 +34,9 @@ jobs:
       - name: Test disabled MT5 execution boundary
         run: python -m unittest discover -s tests -p "test_*.py"
 
+      - name: Compile research Python sources
+        run: python -m compileall -q research
+
       - name: Test web execution safety boundary
         run: pnpm run test
 

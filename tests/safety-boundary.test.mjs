@@ -40,8 +40,8 @@ test("Bridge UI does not call the disabled API or claim a connection", () => {
   assert.doesNotMatch(bridge, /CONNECTED/);
 });
 
-test("broker UI does not collect credentials or call broker endpoints", () => {
+test("broker UI has no credential inputs or broker API calls", () => {
   const broker = read("../MultiBrokerManager.tsx");
   assert.match(broker, /ปิดใช้งาน/);
-  assert.doesNotMatch(broker, /fetch\(|type=["']password|API Secret|apiSecret|apiKey/i);
+  assert.doesNotMatch(broker, /fetch\(|<input|type=["']password|apiSecret|apiKey/i);
 });
