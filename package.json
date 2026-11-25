@@ -1,12 +1,13 @@
 {
-  "name": "my-project",
+  "name": "voom-ai-sniper",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -34,8 +35,5 @@
     "overrides": {
       "hono": "4.12.25"
     }
-  }
-  "scripts": {
-    "build": "[my-framework] build --output public"
   }
 }
