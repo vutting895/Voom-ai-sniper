@@ -27,6 +27,22 @@ class MT5ExecutionSafetyTests(unittest.TestCase):
         )
         self.assertIs(result, False)
 
+
+    def test_web_trade_and_bridge_routes_are_fail_closed(self):
+        route_paths = (
+            ROOT / "app/api/trade/route.ts",
+            ROOT / "app/api/trade/execute/route.ts",
+            ROOT / "app/api/bridge/health/route.ts",
+            ROOT / "app/api/bridge/analyze/route.ts",
+            ROOT / "app/api/broker/auth/route.ts",
+        )
+        for route_path in route_paths:
+            with self.subTest(route=str(route_path.relative_to(ROOT))):
+                source = route_path.read_text(encoding="utf-8")
+                self.assertIn("status: 503", source)
+                self.assertIn("DISABLED", source)
+                self.assertNotIn("proxyBridgeRequest", source)
+
     def test_worker_contains_no_broker_execution_capability(self):
         source = WORKER_PATH.read_text(encoding="utf-8")
         forbidden = (
