@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
-import { proxyBridgeRequest } from "@/lib/voom-bridge";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
 
-export async function POST(request: Request) {
-  const result = await proxyBridgeRequest(request, "analyze");
-  return NextResponse.json(result.body, {
-    status: result.status,
-    headers: { "Cache-Control": "no-store" },
-  });
+function disabled() {
+  return NextResponse.json(
+    {
+      ok: false,
+      code: "BRIDGE_ACCESS_DISABLED",
+      message: "Bridge access remains disabled until authenticated user authorization, tenant isolation, and a non-production test boundary are verified.",
+    },
+    { status: 503, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function GET() {
+  return disabled();
+}
+
+export async function POST() {
+  return disabled();
 }
