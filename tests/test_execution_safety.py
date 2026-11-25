@@ -27,16 +27,21 @@ class MT5ExecutionSafetyTests(unittest.TestCase):
         )
         self.assertIs(result, False)
 
-
     def test_web_trade_and_bridge_routes_are_fail_closed(self):
-        route_paths = (
-            ROOT / "app/api/trade/route.ts",
+        trade_route = ROOT / "app/api/trade/route.ts"
+        trade_source = trade_route.read_text(encoding="utf-8")
+        self.assertIn("SNIPER_EXECUTION_DISABLED", trade_source)
+        self.assertIn("status: 410", trade_source)
+        self.assertNotIn("createBitkubOrder", trade_source)
+        self.assertNotIn("order_send", trade_source)
+
+        disabled_routes = (
             ROOT / "app/api/trade/execute/route.ts",
             ROOT / "app/api/bridge/health/route.ts",
             ROOT / "app/api/bridge/analyze/route.ts",
             ROOT / "app/api/broker/auth/route.ts",
         )
-        for route_path in route_paths:
+        for route_path in disabled_routes:
             with self.subTest(route=str(route_path.relative_to(ROOT))):
                 source = route_path.read_text(encoding="utf-8")
                 self.assertIn("status: 503", source)
