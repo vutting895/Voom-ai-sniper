@@ -6,6 +6,7 @@ import argparse
 import json
 import math
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,7 @@ from backtesting import Backtest, Strategy
 
 
 REQUIRED_COLUMNS = {"time", "open", "high", "low", "close", "spread"}
+NUMERIC_COLUMNS = ("open", "high", "low", "close", "spread")
 METRIC_KEYS = (
     "Return [%]",
     "Equity Final [$]",
@@ -23,6 +25,17 @@ METRIC_KEYS = (
     "Profit Factor",
     "Sharpe Ratio",
 )
+
+
+@dataclass(frozen=True)
+class ReportInputs:
+    raw: pd.DataFrame
+    train: pd.DataFrame
+    holdout: pd.DataFrame
+    cash: float
+    median_spread: float
+    spread_rate: float
+    stats: pd.Series
 
 
 def ema(values, period):
@@ -141,22 +154,49 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_ohlc(csv_path):
-    raw = pd.read_csv(csv_path)
+def read_market_csv(csv_path):
+    return pd.read_csv(csv_path)
+
+
+def validate_required_columns(raw):
     missing = REQUIRED_COLUMNS.difference(raw.columns)
     if missing:
         raise ValueError(f"CSV is missing required columns: {sorted(missing)}")
+    return raw
 
-    raw["time"] = pd.to_datetime(raw["time"], utc=True).dt.tz_convert(None)
-    numeric_columns = ["open", "high", "low", "close", "spread"]
-    for column in numeric_columns:
-        raw[column] = pd.to_numeric(raw[column], errors="coerce")
-    if raw[numeric_columns].isna().any().any():
+
+def normalize_market_time(raw):
+    normalized = raw.copy()
+    normalized["time"] = pd.to_datetime(
+        normalized["time"], utc=True, errors="coerce"
+    ).dt.tz_convert(None)
+    if normalized["time"].isna().any():
+        raise ValueError("time column contains invalid timestamps")
+    return normalized.sort_values("time").drop_duplicates("time").set_index("time")
+
+
+def convert_market_numbers(raw):
+    converted = raw.copy()
+    for column in NUMERIC_COLUMNS:
+        converted[column] = pd.to_numeric(converted[column], errors="coerce")
+    return converted
+
+
+def validate_market_numbers(raw):
+    numeric_values = raw[list(NUMERIC_COLUMNS)]
+    if numeric_values.isna().any().any():
         raise ValueError("OHLC and spread columns must contain valid numeric values")
-    if not np.isfinite(raw[numeric_columns].to_numpy(dtype=float)).all():
+    if not np.isfinite(numeric_values.to_numpy(dtype=float)).all():
         raise ValueError("OHLC and spread columns must contain finite values")
+    return raw
 
-    raw = raw.sort_values("time").drop_duplicates("time").set_index("time")
+
+def load_ohlc(csv_path):
+    raw = read_market_csv(csv_path)
+    raw = validate_required_columns(raw)
+    raw = normalize_market_time(raw)
+    raw = convert_market_numbers(raw)
+    raw = validate_market_numbers(raw)
     if len(raw) < 1000:
         raise ValueError("CSV must contain at least 1000 unique time bars")
     return raw
@@ -215,31 +255,27 @@ def extract_metrics(stats):
     metrics = {}
     for key in METRIC_KEYS:
         value = stats[key]
-        is_number = isinstance(
-            value, (int, float, np.integer, np.floating)
-        )
-        metrics[key] = (
-            float(value) if is_number and np.isfinite(value) else None
-        )
+        is_number = isinstance(value, (int, float, np.integer, np.floating))
+        metrics[key] = float(value) if is_number and np.isfinite(value) else None
     return metrics
 
 
-def build_report(raw, train, holdout, cash, median_spread, spread_rate, stats):
-    trades = stats["_trades"]
+def build_report(inputs: ReportInputs):
+    trades = inputs.stats["_trades"]
     report = {
         "status": "research-only; no MT5 connection and no orders sent",
         "symbol": "GOLD",
         "timeframe": "M15",
-        "data_start_utc": str(raw.index.min()),
-        "data_end_utc": str(raw.index.max()),
-        "bars_total": int(len(raw)),
-        "development_bars_80pct": int(len(train)),
-        "holdout_bars_20pct": int(len(holdout)),
-        "holdout_start_utc": str(holdout.index.min()),
-        "holdout_end_utc": str(holdout.index.max()),
-        "normalized_initial_cash": cash,
-        "training_median_spread_points": median_spread,
-        "fixed_spread_rate_proxy": spread_rate,
+        "data_start_utc": str(inputs.raw.index.min()),
+        "data_end_utc": str(inputs.raw.index.max()),
+        "bars_total": int(len(inputs.raw)),
+        "development_bars_80pct": int(len(inputs.train)),
+        "holdout_bars_20pct": int(len(inputs.holdout)),
+        "holdout_start_utc": str(inputs.holdout.index.min()),
+        "holdout_end_utc": str(inputs.holdout.index.max()),
+        "normalized_initial_cash": inputs.cash,
+        "training_median_spread_points": inputs.median_spread,
+        "fixed_spread_rate_proxy": inputs.spread_rate,
         "strategy": (
             "EMA20/EMA50 trend + RSI14 band + ATR14 SL/TP; "
             "0.25% risk fraction; whole-unit gold proxy"
@@ -253,7 +289,7 @@ def build_report(raw, train, holdout, cash, median_spread, spread_rate, stats):
             "tp_atr": 2.0,
             "risk_fraction": 0.0025,
         },
-        "metrics": extract_metrics(stats),
+        "metrics": extract_metrics(inputs.stats),
         "trade_rows": int(len(trades)),
         "caveats": [
             "Illustrative EMA/RSI baseline, not the production RandomForest/SMC strategy.",
@@ -287,9 +323,16 @@ def main():
     stats = run_holdout_backtest(
         data, holdout.index.min(), args.cash, spread_rate
     )
-    report, trades = build_report(
-        raw, train, holdout, args.cash, median_spread, spread_rate, stats
+    report_inputs = ReportInputs(
+        raw=raw,
+        train=train,
+        holdout=holdout,
+        cash=args.cash,
+        median_spread=median_spread,
+        spread_rate=spread_rate,
+        stats=stats,
     )
+    report, trades = build_report(report_inputs)
     report_path, trades_path = write_outputs(
         Path(args.output_dir), report, trades
     )
