@@ -1,0 +1,53 @@
+name: VOOM CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install research test dependencies
+        run: python -m pip install -r research/requirements.txt
+
+      - name: Test disabled MT5 execution boundary and research logic
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Compile research Python sources
+        run: python -m compileall -q research
+
+      - name: Test web execution safety boundary
+        run: pnpm run test
+
+      - name: TypeScript validation
+        run: pnpm run typecheck
+
+      - name: Production build
+        run: pnpm run build
+
+      - name: Dependency security audit
+        run: pnpm audit --audit-level=low
