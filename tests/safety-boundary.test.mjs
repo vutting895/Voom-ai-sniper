@@ -22,7 +22,7 @@ test("public trade API is permanently disabled and cannot call an order adapter"
   assert.doesNotMatch(route, /createBitkubOrder|order_send|fetch\(/i);
 });
 
-test("legacy root broker credential handler is removed, not left as a mounted endpoint", () => {
+test("legacy root broker credential handler is removed", () => {
   assert.equal(existsSync(new URL("../route.ts", import.meta.url)), false);
 });
 
@@ -31,4 +31,17 @@ test("MT5 worker remains import-safe and refuses every order", () => {
   assert.match(worker, /def execute_mt5_order/);
   assert.match(worker, /return False/);
   assert.doesNotMatch(worker, /import MetaTrader5|mt5\.initialize|mt5\.login|mt5\.order_send/i);
+});
+
+test("Bridge UI does not call the disabled API or claim a connection", () => {
+  const bridge = read("../components/BridgePanel.tsx");
+  assert.match(bridge, /DISABLED/);
+  assert.doesNotMatch(bridge, /fetch\(/);
+  assert.doesNotMatch(bridge, /CONNECTED/);
+});
+
+test("broker UI does not collect credentials or call broker endpoints", () => {
+  const broker = read("../MultiBrokerManager.tsx");
+  assert.match(broker, /ปิดใช้งาน/);
+  assert.doesNotMatch(broker, /fetch\(|type=["']password|API Secret|apiSecret|apiKey/i);
 });
