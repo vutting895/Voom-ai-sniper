@@ -77,10 +77,22 @@ def calculate_units(equity, risk_fraction, stop_distance):
     return max(0, math.floor(equity * risk_fraction / stop_distance))
 
 
+def is_long_entry(price, fast_ema, slow_ema, rsi_value):
+    trend_aligned = fast_ema > slow_ema and price > fast_ema
+    momentum_confirmed = 50 <= rsi_value <= 72
+    return trend_aligned and momentum_confirmed
+
+
+def is_short_entry(price, fast_ema, slow_ema, rsi_value):
+    trend_aligned = fast_ema < slow_ema and price < fast_ema
+    momentum_confirmed = 28 <= rsi_value <= 50
+    return trend_aligned and momentum_confirmed
+
+
 def classify_entry(price, fast_ema, slow_ema, rsi_value):
-    if fast_ema > slow_ema and price > fast_ema and 50 <= rsi_value <= 72:
+    if is_long_entry(price, fast_ema, slow_ema, rsi_value):
         return "long"
-    if fast_ema < slow_ema and price < fast_ema and 28 <= rsi_value <= 50:
+    if is_short_entry(price, fast_ema, slow_ema, rsi_value):
         return "short"
     return None
 
