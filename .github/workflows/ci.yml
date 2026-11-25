@@ -3,10 +3,7 @@ name: VOOM CI
 on:
   pull_request:
     branches: [main]
-  push:
-    branches:
-      - main
-      - research/mt5-backtesting-integration
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -40,8 +37,8 @@ jobs:
       - name: TypeScript validation
         run: pnpm run typecheck
 
-      - name: Dependency security audit
-        run: pnpm audit --audit-level=low
-
       - name: Production build
         run: pnpm run build
+
+      - name: Dependency security audit
+        run: pnpm audit --audit-level=low
